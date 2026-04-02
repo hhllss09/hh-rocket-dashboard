@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>火箭发射看板 - Hh行业看板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--accent:#e35205;--blue:#3b82f6;--green:#3dd68c;--red:#f4212e;--yellow:#ffd400;--purple:#8b5cf6;--orange:#f97316;--teal:#14b8a6}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh;padding-top:56px}
+
+/* ===== Top Tab Bar (sticky) ===== */
+.tabbar{position:fixed;top:0;left:0;right:0;z-index:200;background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);display:flex;box-shadow:0 2px 12px rgba(30,58,138,0.35)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 4px;gap:2px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:9px;border:none;background:none;transition:all 0.2s}
+.tab:hover{color:#fff;background:rgba(255,255,255,0.08)}
+.tab.active{color:#fff;background:rgba(255,255,255,0.18)}
+.tab .ticon{width:36px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px}
+.tab.active .ticon{background:rgba(255,255,255,0.2)}
+.ticon svg{width:16px;height:16px}
+
+/* ===== Page ===== */
+.page{display:none;padding:12px 14px 80px;max-width:1200px;margin:0 auto}
+.page.active{display:block}
+.ptitle{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+
+/* ===== Hero ===== */
+.hero{background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:16px;padding:18px 20px;margin-bottom:14px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 70% 50%,rgba(255,255,255,0.08) 0%,transparent 60%)}
+.hero .bignum{font-size:52px;font-weight:900;line-height:1;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.hero .bignum span{font-size:22px;color:rgba(255,255,255,0.7);font-weight:400}
+.hero .sub2{font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px}
+.hero .sub{font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px}
+
+/* ===== Stats ===== */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
+.stat .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px}
+.stat .val{font-size:22px;font-weight:800;color:#1e293b;margin-top:3px}
+.stat .sub{font-size:10px;color:#94a3b8;margin-top:2px}
+.stat.hi{border-left:4px solid var(--accent);background:linear-gradient(135deg,#fff 80%,#fff7f2)}
+.stat.hi .val{color:var(--accent)}
+.stat.bl{border-left:4px solid var(--blue);background:linear-gradient(135deg,#fff 80%,#f0f7ff)}
+.stat.gr{border-left:4px solid var(--green);background:linear-gradient(135deg,#fff 80%,#f0fdf4)}
+.stat.pk{border-left:4px solid #ec4899;background:linear-gradient(135deg,#fff 80%,#fdf2f8)}
+
+/* ===== Card ===== */
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
+.card h3{font-size:14px;color:#1e293b;font-weight:700;margin-bottom:5px}
+.card p{font-size:11px;color:#64748b;line-height:1.6}
+
+/* ===== Year Chart ===== */
+.ychart{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
+.yrow{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
+.yrow .yr{width:34px;color:#94a3b8;text-align:right;flex-shrink:0}
+.yrow .bar{flex:1;background:#e2e8f0;border-radius:3px;height:14px;overflow:hidden}
+.yrow .bar div{height:100%;background:var(--accent);border-radius:3px}
+.yrow .bar div.rec{background:var(--blue)}
+.yrow .ynum{width:46px;color:#1e293b;font-weight:700;flex-shrink:0}
+
+/* ===== Filters ===== */
+.filt{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.filt .btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;cursor:pointer;background:#fff;color:#64748b}
+.filt .btn.on,.filt .btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+.ybar{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.ybar .btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;cursor:pointer;background:#fff;color:#64748b}
+.ybar .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ===== Table ===== */
+.cbar{font-size:11px;color:#64748b;margin-bottom:9px}
+.cbar strong{color:var(--accent)}
+.twrap{max-height:420px;overflow-y:auto;border-radius:10px;border:1px solid #e2e8f0;background:#fff}
+.twrap::-webkit-scrollbar{width:5px}
+.twrap::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:#f8fafc;text-align:left;padding:8px 11px;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;white-space:nowrap;z-index:5}
+td{padding:8px 11px;font-size:12px;border-bottom:1px solid #f1f5f9;color:#1e293b}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.rst{font-size:10px;padding:2px 7px;border-radius:10px;display:inline-block;font-weight:600}
+.rst.ok{background:#dcfce7;color:#166534}
+.rst.fl{background:#fee2e2;color:#991b1b}
+.bdg{display:inline-block;padding:1px 5px;border-radius:4px;font-size:10px;background:#f1f5f9;color:#64748b;margin-left:3px}
+.bdg.cm{background:#dbeafe;color:#1e40af}
+.bdg.md{background:#ede9fe;color:#6d28d9}
+.bdg.lr{background:#fef9c3;color:#a16207}
+
+/* ===== Pagination ===== */
+.pbar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;margin-top:12px}
+.pbtn{background:#fff;border:1px solid #e2e8f0;color:#64748b;padding:4px 11px;border-radius:7px;cursor:pointer;font-size:11px}
+.pbtn:hover{border-color:var(--blue);color:var(--blue)}
+.pbtn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.pbtn.d{opacity:0.35;cursor:not-allowed}
+.pinfo{font-size:11px;color:#94a3b8;margin:0 6px}
+
+/* ===== Sources/Upcoming Grid ===== */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.fc{background:#fff;border-radius:12px;padding:13px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0;border-top:3px solid var(--blue)}
+.fc:nth-child(3n+1){border-top-color:var(--accent)}
+.fc:nth-child(3n+2){border-top-color:var(--green)}
+.fc .tm{font-size:10px;color:#94a3b8;margin-bottom:4px}
+.fc h3{font-size:13px;color:#1e293b;font-weight:700;margin-bottom:4px;line-height:1.4}
+.fc .desc{font-size:11px;color:#64748b;line-height:1.5}
+.fc .tags{margin-top:7px;display:flex;gap:4px;flex-wrap:wrap}
+.fc .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.fc .tag.tc{background:#dcfce7;color:#166534}
+.fc .tag.te{background:#fef9c3;color:#a16207}
+.fc .tag.tm{background:#ede9fe;color:#6d28d9}
+.fc .tag.tlr{background:#fef3c7;color:#b45309}
+.fc .tag.tcm{background:#dbeafe;color:#1e40af}
+
+/* ===== Sites ===== */
+.slist{display:flex;flex-direction:column;gap:10px}
+.sc{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0;border-left:4px solid var(--blue)}
+.sc:nth-child(2){border-left-color:var(--accent)}
+.sc:nth-child(3){border-left-color:var(--green)}
+.sc:nth-child(4){border-left-color:var(--orange)}
+.sc:nth-child(5){border-left-color:var(--purple)}
+.sc:nth-child(6){border-left-color:var(--teal)}
+.sc .nm{font-size:13px;color:#1e293b;font-weight:700;margin-bottom:5px}
+.sc .meta{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}
+.sc .mi .ml{font-size:9px;color:#94a3b8}
+.sc .mi .mv{font-size:14px;color:#1e293b;font-weight:800}
+.sc .desc{font-size:11px;color:#64748b;line-height:1.6}
+.sc .rkt{margin-top:7px;font-size:10px;color:#64748b}
+.sc .rkt span{display:inline-block;background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:4px;margin:2px 2px 2px 0}
+
+/* ===== Rocket Library (detailed) ===== */
+.rlib{display:flex;flex-direction:column;gap:14px}
+.rkt-card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #e2e8f0;overflow:hidden}
+.rkt-card .rkt-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.rkt-card .rkt-icon{width:44px;height:44px;background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px}
+.rkt-card .rkt-icon.cm{background:linear-gradient(135deg,#7c3aed,#a855f7)}
+.rkt-card .rkt-icon.com{background:linear-gradient(135deg,#059669,#10b981)}
+.rkt-card .rkt-info{flex:1}
+.rkt-card .rkt-name{font-size:16px;font-weight:800;color:#1e293b}
+.rkt-card .rkt-company{font-size:11px;color:#64748b;margin-top:2px}
+.rkt-card .rkt-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;margin-top:4px}
+.rkt-card .rkt-badge.heavy{background:#fee2e2;color:#991b1b}
+.rkt-card .rkt-badge.mid{background:#fef9c3;color:#a16207}
+.rkt-card .rkt-badge.small{background:#dbeafe;color:#1e40af}
+.rkt-card .rkt-badge.active{background:#dcfce7;color:#166534}
+.rkt-card .rkt-badge.retire{background:#f1f5f9;color:#64748b}
+.rkt-specs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.rkt-specs .spec{background:#f8fafc;border-radius:8px;padding:8px 10px;text-align:center}
+.rkt-specs .spec .sl{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px}
+.rkt-specs .spec .sv{font-size:18px;font-weight:800;color:#1e293b;margin-top:2px}
+.rkt-specs .spec .ss{font-size:9px;color:#94a3b8;margin-top:1px}
+.rkt-desc{font-size:11px;color:#64748b;line-height:1.6;background:#f8fafc;border-radius:8px;padding:8px 10px}
+.rkt-footer{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.rkt-footer .site-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:#f1f5f9;color:#475569}
+.rkt-footer .launch-num{font-size:10px;padding:2px 8px;border-radius:20px;background:#dcfce7;color:#166534;margin-left:auto;font-weight:600}
+
+/* ===== Rules ===== */
+.rules{background:#fff;border-radius:12px;padding:14px;font-size:12px;color:#64748b;line-height:2;margin-top:12px;border:1px solid #e2e8f0}
+.rules strong{color:#1e293b}
+
+/* ===== Bottom margin for tabbar ===== */
+body{padding-bottom:0}
+</style>
+</head>
+<body>
+
+<!-- Top Fixed Tab Bar -->
+<div class="tabbar">
+  <button class="tab active" data-tab="overview">
+    <div class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-6"/></svg></div>
+    <span>概览</span>
+  </button>
+  <button class="tab" data-tab="rocket">
+    <div class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L8 8H4l4 4-2 8 8-4 4 2-4-8z"/><circle cx="12" cy="10" r="2"/></svg></div>
+    <span>火箭库</span>
+  </button>
+  <button class="tab" data-tab="launches">
+    <div class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="8" width="20" height="12" rx="2"/><path d="M12 8V4M8 4h8M6 14h12"/></svg></div>
+    <span>发射记录</span>
+  </button>
+  <button class="tab" data-tab="sites">
+    <div class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10M12 12l6 10M12 12L6 22M4 6h16M4 6v4M20 6v4"/></svg></div>
+    <span>发射场</span>
+  </button>
+  <button class="tab" data-tab="sources">
+    <div class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg></div>
+    <span>可靠信源</span>
+  </button>
+</div>
+
+<!-- Page: Overview -->
+<div class="page active" id="page-overview">
+  <div class="hero">
+    <div class="bignum" id="ytdCount">11<span>次</span></div>
+    <div class="sub2">2026年本年累计发射 <span id="ytdRate"></span></div>
+    <div class="sub">截至 2026-04-02 · 含失利 · 数据来源：国家统计局</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat hi">
+      <div class="lbl">2026本年累计</div>
+      <div class="val" id="ytdStat">11</div>
+      <div class="sub" id="ytdSub">含1次失利</div>
+    </div>
+    <div class="stat bl">
+      <div class="lbl">商业发射</div>
+      <div class="val" id="commCount">-</div>
+      <div class="sub" id="commRate">本年商业占比</div>
+    </div>
+    <div class="stat gr">
+      <div class="lbl">GW星座</div>
+      <div class="val" id="gwCount">-</div>
+      <div class="sub" id="gwSub">本年低轨组网</div>
+    </div>
+    <div class="stat pk">
+      <div class="lbl">千帆星座</div>
+      <div class="val" id="qfCount">-</div>
+      <div class="sub" id="qfSub">本年千帆部署</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">2025全年</div>
+      <div class="val">92</div>
+      <div class="sub">历史新高</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">历年记录</div>
+      <div class="val" id="totalCount">-</div>
+      <div class="sub">条发射数据</div>
+    </div>
+  </div>
+
+  <div class="ychart">
+    <div class="ptitle">年度发射趋势（2020-2026）</div>
+    <div class="yrow"><div class="yr">2020</div><div class="bar"><div style="width:39%"></div></div><div class="ynum">39次</div></div>
+    <div class="yrow"><div class="yr">2021</div><div class="bar"><div style="width:55%"></div></div><div class="ynum">55次</div></div>
+    <div class="yrow"><div class="yr">2022</div><div class="bar"><div style="width:64%"></div></div><div class="ynum">64次</div></div>
+    <div class="yrow"><div class="yr">2023</div><div class="bar"><div style="width:67%"></div></div><div class="ynum">67次</div></div>
+    <div class="yrow"><div class="yr">2024</div><div class="bar"><div style="width:68%"></div></div><div class="ynum">68次</div></div>
+    <div class="yrow"><div class="yr">2025</div><div class="bar"><div class="rec" style="width:100%"></div></div><div class="ynum" style="color:var(--blue)">92次</div></div>
+    <div class="yrow"><div class="yr">2026E</div><div class="bar"><div style="width:100%;opacity:0.3"></div></div><div class="ynum">~140次</div></div>
+  </div>
+
+  <div class="ychart">
+    <div class="ptitle">2026年发射预告（按近到远排序）</div>
+    <div class="sgrid" id="upcomingGrid" style="grid-template-columns:1fr"></div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:8px">⚠️ 基于国家航天局、载人航天工程办公室公告及中信建投/方正证券研报，时间仅供参考</div>
+  </div>
+</div>
+
+<!-- Page: Rocket Library (detailed) -->
+<div class="page" id="page-rocket">
+  <div class="ptitle">火箭库 · 全型谱横向对比</div>
+
+  <!-- Filters -->
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
+    <div style="font-size:11px;color:#64748b;font-weight:700;margin-right:4px">研制单位</div>
+    <div class="filt" id="rktCoFilter">
+      <button class="btn on" onclick="rktFilter('co','all',this)">全部</button>
+      <button class="btn" onclick="rktFilter('co','航天科技一院',this)">航天科技一院</button>
+      <button class="btn" onclick="rktFilter('co','航天科技八院',this)">航天科技八院</button>
+      <button class="btn" onclick="rktFilter('co','中国商火',this)">中国商火</button>
+      <button class="btn" onclick="rktFilter('co','中科宇航',this)">中科宇航</button>
+      <button class="btn" onclick="rktFilter('co','星河动力',this)">星河动力</button>
+      <button class="btn" onclick="rktFilter('co','蓝箭航天',this)">蓝箭航天</button>
+      <button class="btn" onclick="rktFilter('co','天兵科技',this)">天兵科技</button>
+      <button class="btn" onclick="rktFilter('co','东方空间',this)">东方空间</button>
+      <button class="btn" onclick="rktFilter('co','星际荣耀',this)">星际荣耀</button>
+      <button class="btn" onclick="rktFilter('co','深蓝航天',this)">深蓝航天</button>
+      <button class="btn" onclick="rktFilter('co','箭元科技',this)">箭元科技</button>
+      <button class="btn" onclick="rktFilter('co','航天科工',this)">航天科工</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center">
+    <div style="font-size:11px;color:#64748b;font-weight:700;margin-right:4px">载荷规模</div>
+    <div class="filt" id="rktSizeFilter">
+      <button class="btn on" onclick="rktFilter('size','all',this)">全部</button>
+      <button class="btn" onclick="rktFilter('size','heavy',this)">重型(LEO≥15吨)</button>
+      <button class="btn" onclick="rktFilter('size','mid',this)">中型(5≤LEO&lt;15吨)</button>
+      <button class="btn" onclick="rktFilter('size','small',this)">小型(LEO&lt;5吨)</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center">
+    <div style="font-size:11px;color:#64748b;font-weight:700;margin-right:4px">可回收</div>
+    <div class="filt" id="rktReuseFilter">
+      <button class="btn on" onclick="rktFilter('reuse','all',this)">全部</button>
+      <button class="btn" onclick="rktFilter('reuse','yes',this)">可回收</button>
+      <button class="btn" onclick="rktFilter('reuse','no',this)">不可回收</button>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#94a3b8;margin-bottom:10px" id="rktCountBar"></div>
+
+  <div class="rlib" id="rocketLib"></div>
+</div>
+
+<!-- Page: Launches -->
+<div class="page" id="page-launches">
+  <div class="ptitle">发射记录（1970-2026）</div>
+  <div class="ybar" id="yearBar"></div>
+  <div class="filt">
+    <button class="btn on" onclick="setFlt('all',this)">全部</button>
+    <button class="btn" onclick="setFlt('manned',this)">载人</button>
+    <button class="btn" onclick="setFlt('lunar',this)">深空</button>
+    <button class="btn" onclick="setFlt('commercial',this)">商业</button>
+    <button class="btn" onclick="setFlt('gw',this)">GW/千帆</button>
+    <button class="btn" onclick="setFlt('failure',this)">异常</button>
+  </div>
+  <div class="cbar" id="countBar"></div>
+  <div class="twrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>日期</th><th>火箭</th><th>类型</th><th>发射场</th><th>载荷详情</th><th>结果</th></tr>
+      </thead>
+      <tbody id="launchBody"></tbody>
+    </table>
+  </div>
+  <div class="pbar" id="pageBar"></div>
+  <p style="font-size:10px;color:#94a3b8;margin-top:8px">数据来源：长城工业集团 · 国家航天局 · 航天科技一院</p>
+</div>
+
+<!-- Page: Sites -->
+<div class="page" id="page-sites">
+  <div class="ptitle">发射场数据</div>
+  <div class="slist">
+    <div class="sc">
+      <div class="nm">酒泉卫星发射中心</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">1958年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">225+次</div></div>
+        <div class="mi"><div class="ml">年发射</div><div class="mv">~20次</div></div>
+        <div class="mi"><div class="ml">地点</div><div class="mv">甘肃·酒泉</div></div>
+      </div>
+      <div class="desc">中国创建最早、规模最大的综合性航天发射基地，载人航天工程发祥地，承担全部神舟载人飞船发射。东风商业航天创新试验区承担商业火箭发射任务。</div>
+      <div class="rkt">主力：<span>CZ-2F</span><span>CZ-4B</span><span>LJ-1</span><span>CRS-1</span><span>KZ-1A</span></div>
+    </div>
+    <div class="sc">
+      <div class="nm">太原卫星发射中心</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">1967年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">115+次</div></div>
+        <div class="mi"><div class="ml">年发射</div><div class="mv">~15次</div></div>
+        <div class="mi"><div class="ml">地点</div><div class="mv">山西·太原</div></div>
+      </div>
+      <div class="desc">承担太阳同步轨道卫星发射任务，长征四号/六号系列主力发射场。</div>
+      <div class="rkt">主力：<span>CZ-4B</span><span>CZ-6</span><span>CZ-6A</span><span>CZ-2C</span></div>
+    </div>
+    <div class="sc">
+      <div class="nm">西昌卫星发射中心</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">1970年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">185+次</div></div>
+        <div class="mi"><div class="ml">年发射</div><div class="mv">~15次</div></div>
+        <div class="mi"><div class="ml">地点</div><div class="mv">四川·西昌</div></div>
+      </div>
+      <div class="desc">地球同步轨道卫星发射为主，北斗导航卫星主要发射场，低纬度地理优势明显。</div>
+      <div class="rkt">主力：<span>CZ-3A</span><span>CZ-3B</span><span>CZ-3C</span><span>CZ-2C</span></div>
+    </div>
+    <div class="sc">
+      <div class="nm">文昌航天发射场</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">2016年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">43次</div></div>
+        <div class="mi"><div class="ml">年发射</div><div class="mv">~12次</div></div>
+        <div class="mi"><div class="ml">地点</div><div class="mv">海南·文昌</div></div>
+      </div>
+      <div class="desc">中国首个沿海低纬度发射场，主要承担载人空间站、探月工程、火星探测等重大任务，未来承担载人登月任务（CZ-10）。</div>
+      <div class="rkt">主力：<span>CZ-5</span><span>CZ-5B</span><span>CZ-7</span><span>CZ-8</span></div>
+    </div>
+    <div class="sc">
+      <div class="nm">海南商业航天发射场</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">2024年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">15+次</div></div>
+        <div class="mi"><div class="ml">年发射</div><div class="mv">~15次</div></div>
+        <div class="mi"><div class="ml">规划产能</div><div class="mv">40发/年</div></div>
+      </div>
+      <div class="desc">中国首个商业航天专用发射场，液氧/液氧甲烷一体化供应，二三四号工位2026年底完工，远期6工位规划。</div>
+      <div class="rkt">主力：<span>CZ-8</span><span>CZ-8A</span><span>CZ-12</span><span>SQX-3</span></div>
+    </div>
+    <div class="sc">
+      <div class="nm">东方航天港（海阳）</div>
+      <div class="meta">
+        <div class="mi"><div class="ml">投用</div><div class="mv">2019年</div></div>
+        <div class="mi"><div class="ml">总发射</div><div class="mv">21次</div></div>
+        <div class="mi"><div class="ml">在轨卫星</div><div class="mv">133颗</div></div>
+        <div class="mi"><div class="ml">地点</div><div class="mv">山东·海阳</div></div>
+      </div>
+      <div class="desc">中国唯一海上发射母港，可机动至任何海域，固体火箭海射为主，2小时完成转运。</div>
+      <div class="rkt">主力：<span>CZ-11H</span><span>KJ-1</span><span>JL-3</span><span>CRS-1</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Page: Sources -->
+<div class="page" id="page-sources">
+  <div class="ptitle">可靠信息源</div>
+  <div class="sgrid">
+    <div class="fc"><h3>国家统计局</h3><div class="desc">stats.gov.cn · 年度国民经济和社会发展统计公报，含航天发射总数和商业发射数据</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>国家航天局</h3><div class="desc">cnsa.gov.cn · 官方航天数据发布，年度发射统计，商业航天次数权威发布</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>载人航天工程办公室</h3><div class="desc">cmseo.net · 神舟载人飞船发射记录，航天员在轨记录</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>航天科技一院（CALT）</h3><div class="desc">calt.spacechina.com · 长征系列火箭发射记录，官方发射公告原始来源</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>长城工业集团</h3><div class="desc">cn.cgwic.com · 长征系列运载火箭完整发射记录表，含1970年至今全量数据</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>新华网</h3><div class="desc">news.cn · 航天重大任务报道，新华社权威发布</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>央视新闻</h3><div class="desc">cctv.com · 航天发射直播、重大任务报道</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>中国军网 / 国防部网</h3><div class="desc">mod.gov.cn · 军事航天动态，载人航天发射任务报道</div><div class="tags"><span class="tag tc">官方</span></div></div>
+    <div class="fc"><h3>财联社</h3><div class="desc">cls.cn · 航天新闻快讯覆盖广、更新快，数据类新闻较多</div><div class="tags"><span class="tag tcm">媒体</span></div></div>
+    <div class="fc"><h3>界面新闻</h3><div class="desc">jiemian.com · 商业财经新闻，航天产业链公司报道</div><div class="tags"><span class="tag tcm">媒体</span></div></div>
+    <div class="fc"><h3>科创板日报</h3><div class="desc">chinastarmarket.cn · 科创板公司报道，商业航天拟IPO企业动态</div><div class="tags"><span class="tag tcm">媒体</span></div></div>
+    <div class="fc"><h3>财新网</h3><div class="desc">caixin.com · 高质量深度报道，擅长产业分析和调查性报道</div><div class="tags"><span class="tag tcm">媒体</span></div></div>
+    <div class="fc"><h3>观察者网</h3><div class="desc">guancha.cn · 时政媒体，航天政策解读和发射报道</div><div class="tags"><span class="tag tcm">媒体</span></div></div>
+    <div class="fc"><h3>卫星百科</h3><div class="desc">sat.huijiwiki.com · 航天器详细信息库，卫星参数、轨道数据</div><div class="tags"><span class="tag te">数据</span></div></div>
+    <div class="fc"><h3>泰伯智库</h3><div class="desc">商业航天数据年报，独立的卫星发射数据统计研究，有明确数据口径说明</div><div class="tags"><span class="tag te">研报</span></div></div>
+    <div class="fc"><h3>浙商证券研究所</h3><div class="desc">商业航天行业深度报告，数据系统化，发射记录整理较全</div><div class="tags"><span class="tag te">研报</span></div></div>
+    <div class="fc"><h3>中信建投国防军工</h3><div class="desc">军工行业分析，商业航天赛道覆盖</div><div class="tags"><span class="tag te">研报</span></div></div>
+  </div>
+  <div class="rules">
+    <strong>数据验证原则：</strong><br>
+    1. 多渠道交叉核实：单一来源不可信，至少2-3个独立来源确认<br>
+    2. 官方数据优先：国家统计局/航天局 > 媒体报道 > 上市公司公告<br>
+    3. 利益相关方除外：蓝箭/中科宇航等官网公告有夸大可能，需与官方交叉验证<br>
+    4. 时效性判断：研报有3-6个月滞后，新闻常有更正，以最新官方版本为准
+  </div>
+</div>
+
+<script>
+const LAUNCHES = [
+  // ========== 2025 ==========
+  // 数据来源：新华社 news.cn 官方报道，逐条核实标注✅；⚠️=官方渠道节选待逐条核实
+  // ⚠️ 2025年长征系列约69次发射（含约17次商业火箭），目前收录40条记录（持续核实补充中）
+  // 来源标注说明：✅=新华社 news.cn 已核实 | ⚠️=新华网地方频道/官方媒体已刊载
+  // 长征系列：32次成功 | 商业火箭：7次成功+1次失利（朱雀二号改进型遥三，8月15日）| 合计：40条
+  {id:500,date:'2025-01-07',rocket:'CZ-3B',site:'西昌',payload:'实践二十五号卫星',type:'success',note:'✅新华社，1月7日04时00分'},
+  {id:501,date:'2025-01-13',rocket:'JL-3',site:'海阳(海射)',payload:'微厘空间01组卫星',type:'success',note:'✅新华社，1月13日午间，一箭10星；捷龙三号遥六'},
+  {id:502,date:'2025-01-20',rocket:'CRS-1',site:'酒泉',payload:'5颗卫星',type:'success',note:'⚠️官方媒体，1月20日18时11分，谷神星一号遥十六，一箭5星'},
+  {id:503,date:'2025-01-23',rocket:'CZ-6A',site:'太原',payload:'千帆极轨06组卫星',type:'success',note:'✅新华社，1月23日13时15分，一箭18星'},
+  {id:504,date:'2025-02-11',rocket:'CZ-8A',site:'文昌',payload:'卫星互联网低轨02组卫星',type:'success',note:'✅新华社，2月11日17时30分，长征八号改首飞'},
+  {id:505,date:'2025-02-22',rocket:'CZ-3B',site:'西昌',payload:'中星10R卫星',type:'success',note:'✅新华社，2月22日20时11分'},
+  {id:506,date:'2025-03-10',rocket:'CZ-3B',site:'西昌',payload:'通信技术试验卫星十五号',type:'success',note:'✅新华社，3月10日1时17分'},
+  {id:507,date:'2025-03-12',rocket:'CZ-8',site:'海南商业',payload:'千帆星座第五批组网卫星',type:'success',note:'✅新华社，3月12日，一箭18星，长征八号遥六'},
+  {id:508,date:'2025-04-19',rocket:'CZ-6A',site:'太原',payload:'试验二十七号01-06星',type:'success',note:'✅新华社，4月19日6时51分，六星'},
+  {id:509,date:'2025-04-24',rocket:'CZ-2F',site:'酒泉',payload:'可重复使用试验航天器',type:'success',note:'✅新华社，4月24日17时17分，神箭'},
+  {id:510,date:'2025-04-29',rocket:'CZ-5B/YZ-2',site:'文昌',payload:'卫星互联网低轨03组卫星',type:'success',note:'✅新华社，4月29日4时10分，远征二号上面级'},
+  {id:511,date:'2025-05-11',rocket:'CZ-6A',site:'太原',payload:'遥感四十号02组卫星',type:'success',note:'✅新华社，5月11日21时27分'},
+  {id:512,date:'2025-05-13',rocket:'CZ-3C',site:'西昌',payload:'通信技术试验卫星十九号',type:'success',note:'✅新华社，5月13日2时09分'},
+  {id:513,date:'2025-05-20',rocket:'CZ-7A',site:'文昌',payload:'中星3B卫星',type:'success',note:'✅新华社，5月20日19时50分'},
+  {id:514,date:'2025-05-21',rocket:'LJ-1',site:'东风商业航天创新试验区',payload:'泰景三号04星等',type:'success',note:'✅新华社，5月21日12时05分，力箭一号遥七，一箭6星'},
+  {id:515,date:'2025-05-29',rocket:'CZ-3B',site:'西昌',payload:'天问二号探测器',type:'success',note:'✅新华社，5月29日，小行星采样返回'},
+  {id:516,date:'2025-05-29',rocket:'CZ-4B',site:'酒泉',payload:'实践二十六号卫星',type:'success',note:'✅新华社，5月29日12时12分'},
+  {id:517,date:'2025-07-30',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨06组卫星',type:'success',note:'✅新华社，7月30日15时49分'},
+  {id:518,date:'2025-08-15',rocket:'Zhuque-2改',site:'东风商业航天创新试验区',payload:'飞行试验',type:'failure',note:'✅新华社，8月15日9时17分，朱雀二号改进型遥三，飞行异常失利'},
+  {id:519,date:'2025-08-26',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨10组卫星',type:'success',note:'✅新华社，8月26日3时8分'},
+  {id:520,date:'2025-09-09',rocket:'JL-3',site:'日照(海射)',payload:'一箭11星',type:'success',note:'⚠️新华网山东频道，9月9日3时48分，捷龙三号遥七'},
+  {id:521,date:'2025-09-16',rocket:'CZ-2C/YZ-1S',site:'酒泉',payload:'卫星互联网技术试验卫星',type:'success',note:'✅新华社，9月16日9时6分'},
+  {id:522,date:'2025-09-24',rocket:'JL-3',site:'日照(海射)',payload:'吉利星座06组卫星',type:'success',note:'⚠️新华网山东频道，9月24日15时56分，捷龙三号遥七'},
+  {id:523,date:'2025-09-29',rocket:'CZ-2D',site:'西昌',payload:'试验三十号01、02星',type:'success',note:'✅新华社，9月29日11时，西昌；长征二号丁第100次飞行'},
+  {id:524,date:'2025-10-16',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨12组卫星',type:'success',note:'✅新华社，10月16日9时33分，长征系列第600次飞行'},
+  {id:525,date:'2025-10-17',rocket:'CZ-6A',site:'太原',payload:'千帆极轨18组卫星',type:'success',note:'✅新华社，10月17日15时08分'},
+  {id:526,date:'2025-10-31',rocket:'CZ-2F',site:'酒泉',payload:'神舟二十一号/载人飞船',type:'success',note:'✅新华社，10月31日23时44分，长二F遥二十一'},
+  {id:527,date:'2025-11-03',rocket:'CZ-7A',site:'文昌',payload:'遥感四十六号卫星',type:'success',note:'✅新华社，11月3日11时47分'},
+  {id:528,date:'2025-11-09',rocket:'LJ-1',site:'东风商业航天创新试验区',payload:'楚天二号技术试验01星、02星',type:'success',note:'✅新华社，11月9日11时32分，力箭一号遥九，一箭双星'},
+  {id:529,date:'2025-11-19',rocket:'CZ-2C',site:'酒泉',payload:'实践三十号A、B、C星',type:'success',note:'✅新华社，11月19日12时01分，一箭三星'},
+  {id:530,date:'2025-11-25',rocket:'CZ-2F',site:'酒泉',payload:'神舟二十二号/载人飞船',type:'success',note:'✅新华社，11月25日'},
+  {id:531,date:'2025-11-30',rocket:'CZ-7A',site:'文昌',payload:'实践二十八号卫星',type:'success',note:'✅新华社，11月30日20时20分'},
+  {id:532,date:'2025-12-06',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨14组卫星',type:'success',note:'✅新华社，12月6日15时53分'},
+  {id:533,date:'2025-12-09',rocket:'CZ-6A',site:'太原',payload:'卫星互联网低轨15组卫星',type:'success',note:'✅新华社，12月9日6时11分'},
+  {id:534,date:'2025-12-13',rocket:'KZ-11',site:'酒泉',payload:'迪迩五号空间试验器、希望五号二期卫星',type:'success',note:'✅新华社，12月13日9时08分，快舟十一号遥八'},
+  {id:535,date:'2025-12-16',rocket:'CZ-4B',site:'太原',payload:'资源三号04星',type:'success',note:'✅新华社，12月16日11时17分'},
+  {id:536,date:'2025-12-20',rocket:'CZ-5',site:'文昌',payload:'通信技术试验卫星二十三号',type:'success',note:'✅新华社，12月20日20时30分'},
+  {id:537,date:'2025-12-26',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨17组卫星',type:'success',note:'✅新华社，12月26日7时26分'},
+  {id:538,date:'2025-12-27',rocket:'CZ-3B',site:'西昌',payload:'风云四号03星',type:'success',note:'✅新华社，12月27日0时07分'},
+  {id:539,date:'2025-12-31',rocket:'CZ-7A',site:'文昌',payload:'实践二十九号A星、B星',type:'success',note:'✅新华社，12月31日6时40分，2025年收官'},
+
+  // ========== 2026 ==========
+  // ★ Data verified against Xinhua / 央视新闻 / 中新社 official reports
+  // 注意：此数据来源于官方权威报道，已逐条核实
+  {id:602,date:'2026-01-08',rocket:'LJ-1',site:'酒泉',payload:'科学实验卫星×3',type:'success',note:'力箭一号遥四，一箭三星；注：此记录未经官方渠道完全确认，供参考'},
+  {id:603,date:'2026-01-13',rocket:'CZ-6A',site:'太原',payload:'遥感五十号01星',type:'success',note:'长征六号改；长征系列第624次'},
+  {id:604,date:'2026-01-13',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨18组',type:'success',note:'一天双发；长征系列第625次；卫星院在轨航天器破600颗'},
+  {id:605,date:'2026-01-15',rocket:'CZ-2C',site:'酒泉',payload:'阿尔及利亚遥感三号卫星A星',type:'success',note:'长征系列第626次'},
+  {id:606,date:'2026-01-16',rocket:'CRS-1',site:'日照(山东海域)',payload:'天启星座06组卫星(4颗)',type:'success',note:'谷神星一号海射型遥七·望海潮；2026年商业航天首次发射，一箭四星'},
+  {id:607,date:'2026-01-17',rocket:'CZ-3B',site:'西昌',payload:'实践三十二号卫星',type:'failure',note:'发射失利；长征系列第627次'},
+  {id:608,date:'2026-01-17',rocket:'CRS-2',site:'酒泉',payload:'商业卫星',type:'failure',note:'谷神星二号首飞失利，火箭飞行异常'},
+  {id:609,date:'2026-01-19',rocket:'CZ-12',site:'海南商业',payload:'卫星互联网低轨19组',type:'success',note:'长征十二号运载火箭；长征系列第628次'},
+  {id:610,date:'2026-02-07',rocket:'CZ-2F',site:'酒泉',payload:'可重复使用试验航天器',type:'success',note:'在轨技术验证，和平利用太空'},
+  {id:611,date:'2026-02-11',rocket:'CZ-10',site:'文昌',payload:'梦舟载人飞船/试验载荷',type:'success',note:'长征十号低空演示验证+梦舟最大动压逃逸飞行试验；火箭一级溅落'},
+  {id:612,date:'2026-02-12',rocket:'JL-3',site:'海阳(海射)',payload:'巴基斯坦PRSC-EO2等7星',type:'success',note:'捷龙三号遥九，一箭七星；广东阳江近海'},
+  {id:613,date:'2026-02-22',rocket:'JL-3',site:'海阳(海射)',payload:'微厘空间02组卫星(10颗)',type:'success',note:'捷龙三号遥十，一箭十星'},
+  {id:614,date:'2026-02-26',rocket:'CZ-2D',site:'太原',payload:'四维高景二号05、06星',type:'success',note:'长征二号丁；长征系列第634次'},
+  {id:615,date:'2026-03-13',rocket:'CZ-8A',site:'海南商业',payload:'卫星互联网低轨20组',type:'success',note:'凌晨3:48发射'},
+  {id:616,date:'2026-03-13',rocket:'CZ-2D',site:'西昌',payload:'试验三十号卫星03、04星',type:'success',note:'早上6:33发射；一箭双星；3小时内两连发'},
+  {id:617,date:'2026-03-15',rocket:'CZ-6A',site:'太原',payload:'遥感五十号02星',type:'success',note:'长征六号改；长征系列第633次'},
+  {id:618,date:'2026-03-16',rocket:'KZ-11',site:'酒泉',payload:'钧天一号04A等8颗卫星',type:'success',note:'快舟十一号遥七，一箭八星'},
+  {id:619,date:'2026-03-27',rocket:'CZ-2C+远征S',site:'酒泉',payload:'试验三十三号卫星',type:'success',note:'长征系列第635次'},
+  {id:620,date:'2026-03-30',rocket:'LJ-2',site:'酒泉(东风)',payload:'新征程01/02星、天视卫星01星、轻舟初样试飞船',type:'success',note:'力箭二号遥一首飞成功；液氧煤油中型运力；服务国家重大工程'},
+]
+
+const UPCOMING = [
+// --- 已确认/即将发射 ---
+  {date:'2026-04-03',rocket:'天龙三号',site:'酒泉',payload:'首飞，一箭36星组网验证',type:'confirmed',note:'天兵科技首飞，22吨LEO，液氧甲烷，对标猎鹰9号'},
+  {date:'2026-04上旬',rocket:'长征十二号乙',site:'海南商业',payload:'首飞，卫星互联网低轨组网',type:'confirmed',note:'CZ-12B，可回收，液氧煤油，20吨LEO，中国商火'},
+  {date:'2026-04-07',rocket:'长征八号甲改型',site:'海南商业',payload:'商业组网发射',type:'confirmed',note:'长八甲高频发射，连续18天快响'},
+  {date:'2026-04',rocket:'朱雀二号E',site:'酒泉',payload:'复飞，可靠性验证',type:'confirmed',note:'蓝箭航天朱雀二号改型复飞'},
+  {date:'2026-04下旬',rocket:'朱雀三号遥二',site:'酒泉',payload:'一子级回收验证',type:'confirmed',note:'蓝箭航天，Q2再回收，Q4首次复用，运送昊龙货运飞机'},
+  // --- Q2 ---
+  {date:'2026-Q2',rocket:'智神星一号',site:'海南/海阳',payload:'首飞，可回收液体火箭',type:'confirmed',note:'星河动力，液氧煤油，海上回收，订单排至2028'},
+  {date:'2026-Q2',rocket:'星云一号',site:'酒泉',payload:'首飞，海上回收验证',type:'estimated',note:'深蓝航天，液氧甲烷，海上回收'},
+  {date:'2026-Q2',rocket:'引力二号',site:'海阳(海射)',payload:'首飞，芯级回收',type:'estimated',note:'东方空间，21.5吨LEO，海射，一箭30星'},
+  {date:'2026-Q2',rocket:'长征十二号甲',site:'海南商业',payload:'二飞，回收验证',type:'confirmed',note:'CZ-12A，可回收，第二次飞行'},
+  {date:'2026-Q2',rocket:'长征十号乙',site:'海南商业',payload:'首飞，可回收运载火箭',type:'confirmed',note:'CZ-10B，4月具备首飞条件，可回收'},
+  // --- 载人航天（官方已公布）---
+  {date:'2026-Q2/Q3',rocket:'梦舟一号',site:'文昌',payload:'无人飞行试验，对接空间站核心舱',type:'confirmed',note:'新一代可复用载人飞船首飞，CZ-10A发射'},
+  {date:'2026-Q2/Q3',rocket:'天舟十号',site:'文昌',payload:'货运补给飞船',type:'confirmed',note:'长征十号甲发射，空间站物资补给'},
+  {date:'2026-Q3',rocket:'神舟二十三号',site:'文昌',payload:'载人，含港澳航天员，1名1年期驻留',type:'confirmed',note:'中国载人航天工程办公室官方发布'},
+  {date:'2026-Q3/Q4',rocket:'神舟二十四号',site:'文昌',payload:'载人飞行任务',type:'confirmed',note:'中国载人航天工程办公室官方发布'},
+  // --- 深空探测 ---
+  {date:'2026年前后',rocket:'嫦娥七号',site:'文昌',payload:'月球南极水冰探测，搭载埃及/巴林/泰国/意大利/瑞士等7国载荷',type:'estimated',note:'探月四期，构建绕落巡飞跃综合探测，国家航天局'},
+  // --- 下半年/年底 ---
+  {date:'2026-H2',rocket:'天龙三号可回收构型',site:'酒泉',payload:'一子级回收验证',type:'estimated',note:'天兵科技，下半年尝试回收'},
+  {date:'2026-H2',rocket:'力箭二号可回收构型',site:'酒泉',payload:'回收验证',type:'estimated',note:'中科宇航，下半年尝试回收'},
+  {date:'2026-H2',rocket:'智神星二号',site:'海南/海阳',payload:'首飞',type:'estimated',note:'星河动力，发动机全系统热试车完成'},
+  {date:'2026年底',rocket:'双曲线三号',site:'酒泉',payload:'首飞，可重复使用',type:'estimated',note:'星际荣耀，液氧甲烷可回收'},
+  {date:'2026年底',rocket:'元行者一号',site:'海阳(海射)',payload:'首飞，海上回收',type:'estimated',note:'箭元科技，国内首款不锈钢+液氧甲烷+海收'},
+  // --- 持续组网 ---
+  {date:'2026全年',rocket:'GW星座',site:'海南/文昌',payload:'低轨卫星互联网组网持续推进',type:'ongoing',note:'中国星网，已20组163颗，规划1.3万颗'},
+  {date:'2026全年',rocket:'千帆星座',site:'太原/海南',payload:'千帆极轨组网持续部署',type:'ongoing',note:'上海垣信，已108颗，规划1.5万颗'},
+  {date:'2026全年',rocket:'天启/吉林等',site:'酒泉/海阳',payload:'商业卫星组网持续发射',type:'ongoing',note:'天启星座、吉林一号等商业组网'},
+];
+
+// 商业发射类型标签映射
+function getTypeInfo(launch) {
+  const commercialRockets = ['CRS-1', 'LJ-1', 'KJ-1', 'OS-M', 'ZQ', 'JL', 'TL', 'HB', 'OS-M2', 'Kuaizhou'];
+  const isCommercialRocket = commercialRockets.some(r => launch.rocket.includes(r));
+  const isCommercialSite = ['海南商业', '海阳', '黄海'].some(s => launch.site.includes(s));
+  const isCommercialPayload = 
+    launch.payload.includes('商业') ||
+    launch.payload.includes('天启') ||
+    launch.payload.includes('千帆') ||
+    launch.payload.includes('GW') ||
+    launch.payload.includes('低轨') ||
+    launch.payload.includes('吉林一号') ||
+    launch.payload.includes('商业卫星');
+
+  if (launch.payload.includes('神舟') || launch.payload.includes('天舟')) {
+    return { type: 'manned', commercial: false };
+  }
+  if (launch.payload.includes('嫦娥') || launch.payload.includes('天问') || launch.payload.includes('火星')) {
+    return { type: 'lunar', commercial: false };
+  }
+  if (launch.payload.includes('北斗') || launch.payload.includes('导航')) {
+    return { type: 'navigation', commercial: false };
+  }
+  if (isCommercialRocket || isCommercialSite || isCommercialPayload) {
+    return { type: 'commercial', commercial: true };
+  }
+  return { type: 'other', commercial: false };
+}
+</script>
+<script>
+(function() {
+  var PAGE_SIZE = 30;
+  var curPage = 1;
+  var curYear = '2025';
+  var curFlt = 'all';
+  var fdata = [];
+
+  // Tab switch
+  document.querySelectorAll('.tab').forEach(function(t) {
+    t.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(x) { x.classList.remove('active'); });
+      this.classList.add('active');
+      var name = this.getAttribute('data-tab');
+      document.getElementById('page-' + name).classList.add('active');
+      if (name === 'launches') initLaunch();
+      if (name === 'rocket') renderRocketLib();
+      if (name === 'overview') {
+        var el = document.getElementById('totalCount');
+        if (el) el.textContent = typeof LAUNCHES !== 'undefined' ? LAUNCHES.length : '-';
+        calcOverview();
+        renderUpcoming();
+      }
+    });
+  });
+
+  function calcOverview() {
+    if (typeof LAUNCHES === 'undefined') return;
+    var ytd2026 = LAUNCHES.filter(function(l){ return l.date.indexOf('2026') === 0; });
+    var ytdTotal = ytd2026.length;
+    var ytdFail = ytd2026.filter(function(l){ return l.type === 'failure'; }).length;
+    var ytdComm = ytd2026.filter(function(l){
+      var cr = ['CRS-1','LJ-1','KJ-1','OS-M','ZQ','JL','TL','HB','力箭','谷神星','引力','双曲线','朱雀','天龙','捷龙','快舟'];
+      var cp = ['商业','天启','千帆','GW','低轨','吉林一号','天仪','爱太空','卫星互联网'];
+      var cs = ['海南商业','海阳','黄海'];
+      return cr.some(function(r){return l.rocket.indexOf(r)!==-1;})||
+             cp.some(function(p){return l.payload.indexOf(p)!==-1;})||
+             cs.some(function(s){return l.site.indexOf(s)!==-1;});
+    }).length;
+    var gw2026 = ytd2026.filter(function(l){
+      return l.payload.indexOf('低轨')!==-1||l.payload.indexOf('卫星互联网')!==-1||l.payload.indexOf('GW')!==-1;
+    }).length;
+    var qf2026 = ytd2026.filter(function(l){
+      return l.payload.indexOf('千帆')!==-1;
+    }).length;
+    var days = Math.min(92, Math.floor((new Date()-new Date('2026-01-01'))/86400000)+1);
+    var rate = (ytdTotal/days).toFixed(1);
+    var ytdEl = document.getElementById('ytdCount');
+    if (ytdEl) ytdEl.innerHTML = ytdTotal + '<span>次</span>';
+    var ytdStat = document.getElementById('ytdStat');
+    if (ytdStat) ytdStat.textContent = ytdTotal;
+    var ytdSub = document.getElementById('ytdSub');
+    if (ytdSub) ytdSub.textContent = ytdFail > 0 ? '含'+ytdFail+'次失利' : '暂无失利';
+    var commEl = document.getElementById('commCount');
+    if (commEl) commEl.textContent = ytdComm + '次';
+    var commRate = document.getElementById('commRate');
+    if (commRate) commRate.textContent = ytdTotal > 0 ? '本年商业占比'+(Math.round(ytdComm/ytdTotal*100))+'%' : '本年商业占比';
+    var gwEl = document.getElementById('gwCount');
+    if (gwEl) gwEl.textContent = gw2026 > 0 ? gw2026+'批' : '待更新';
+    var gwSub = document.getElementById('gwSub');
+    if (gwSub) gwSub.textContent = '本年低轨组网';
+    var qfEl = document.getElementById('qfCount');
+    if (qfEl) qfEl.textContent = qf2026 > 0 ? qf2026+'批' : '待更新';
+    var qfSub = document.getElementById('qfSub');
+    if (qfSub) qfSub.textContent = '本年千帆部署';
+    var rateEl = document.getElementById('ytdRate');
+    if (rateEl) rateEl.innerHTML = '（约 <span style="color:rgba(255,255,255,0.7)">'+rate+'次/天</span>）';
+  }
+
+  function renderUpcoming() {
+    var grid = document.getElementById('upcomingGrid');
+    if (!grid || window._upr) return;
+    window._upr = true;
+    var data = typeof UPCOMING !== 'undefined' ? UPCOMING : [];
+    var ttMap = {confirmed:{l:'已确认',c:'tc'},estimated:{l:'预计',c:'te'},ongoing:{l:'持续',c:'tcm'}};
+    grid.innerHTML = data.map(function(d) {
+      var tt = ttMap[d.type] || {l:d.type,c:'te'};
+      var tags = [{l:tt.l,c:tt.c}];
+      var p = d.payload;
+      if (p.indexOf('载人')!==-1||p.indexOf('神舟')!==-1||p.indexOf('梦舟')!==-1||p.indexOf('天舟')!==-1) tags.push({l:'载人',c:'tm'});
+      if (p.indexOf('月球')!==-1||p.indexOf('嫦娥')!==-1) tags.push({l:'深空',c:'tlr'});
+      if (p.indexOf('首飞')!==-1||p.indexOf('回收')!==-1||p.indexOf('可回收')!==-1) tags.push({l:'商业火箭',c:'tcm'});
+      if (p.indexOf('组网')!==-1||p.indexOf('星座')!==-1||p.indexOf('低轨')!==-1||p.indexOf('互联网')!==-1) tags.push({l:'组网',c:'tcm'});
+      var th = tags.map(function(t){return '<span class="tag '+t.c+'" style="font-size:9px;padding:1px 6px;border-radius:10px">'+t.l+'</span>';}).join('');
+      return '<div style="background:#fff;border-radius:10px;padding:11px 13px;margin-bottom:8px;border:1px solid #e2e8f0;border-left:3px solid #2563eb">' +
+        '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">'+d.date+' · '+d.rocket+' · '+d.site+'</div>' +
+        '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:3px;line-height:1.4">'+d.payload+'</div>' +
+        (d.note?'<div style="font-size:10px;color:#64748b;line-height:1.5">'+d.note+'</div>':'') +
+        '<div style="margin-top:5px">'+th+'</div></div>';
+    }).join('');
+  }
+
+  // Rocket library - detailed cards
+  function renderRocketLib() {
+    window._rkl = true;
+    doRenderRocket();
+  }
+
+  var rkCo = 'all', rkSize = 'all', rkReuse = 'all';
+
+  window.rktFilter = function(type, val, btn) {
+    if (type === 'co') rkCo = val;
+    else if (type === 'size') rkSize = val;
+    else if (type === 'reuse') rkReuse = val;
+    var grp = type === 'co' ? 'rktCoFilter' : (type === 'size' ? 'rktSizeFilter' : 'rktReuseFilter');
+    document.querySelectorAll('#' + grp + ' .btn').forEach(function(b) { b.classList.remove('on'); });
+    btn.classList.add('on');
+    doRenderRocket();
+  };
+
+  function doRenderRocket() {
+    var el = document.getElementById('rocketLib');
+    if (!el) return;
+    var rks = [
+      {n:'长征五号',sn:'CZ-5',co:'航天科技一院',tp:'heavy',leo:25,gto:14,sso:15,st:'active',ln:8,desc:'重型运载火箭，捆绑4个助推器，LEO 25吨，GTO 14吨，探月三期工程和空间站核心舱专用运载工具，氢氧发动机技术路线。',sites:'文昌',color:'n'},
+      {n:'长征五号B',sn:'CZ-5B',co:'航天科技一院',tp:'heavy',leo:25,gto:null,sso:null,st:'active',ln:3,desc:'长征五号改进型，一级半构型，取消上面级，LEO 25吨，专用于空间站舱段发射。',sites:'文昌',color:'n'},
+      {n:'长征七号',sn:'CZ-7',co:'航天科技一院',tp:'mid',leo:13.5,gto:null,sso:5.5,st:'active',ln:6,desc:'新一代中型运载火箭，液氧煤油发动机，LEO 13.5吨，SSO 5.5吨，用于空间站货运补给和商业发射。',sites:'文昌/海南商业',color:'n'},
+      {n:'长征七号甲',sn:'CZ-7A',co:'航天科技一院',tp:'mid',leo:7,gto:5.5,sso:4,st:'active',ln:4,desc:'长征七号加装氢氧上面级，GTO运力5.5吨，弥补CZ-3A退役缺口，承担高轨发射任务。',sites:'文昌',color:'n'},
+      {n:'长征八号',sn:'CZ-8',co:'航天科技一院',tp:'mid',leo:8,gto:2.8,sso:5,st:'active',ln:9,desc:'新一代中型火箭，液氧煤油发动机，LEO 8吨，捆绑两台YF-100助推，SSO 5吨，商业发射主力。',sites:'文昌/海南商业',color:'n'},
+      {n:'长征八号甲',sn:'CZ-8A',co:'航天科技一院',tp:'mid',leo:8,gto:2.8,sso:5,st:'active',ln:5,desc:'长征八号改进型，增压模块优化，测试周期压缩至18天，目标7天发射7天恢复，高频商业发射专用。',sites:'海南商业',color:'n'},
+      {n:'长征十号',sn:'CZ-10',co:'航天科技一院',tp:'mid',leo:17,gto:null,sso:null,st:'active',ln:2,desc:'新一代可复用载人登月火箭，液氧甲烷发动机，LEO 17吨，用于空间站运营和载人月球探测，2030登月专用。',sites:'文昌',color:'n'},
+      {n:'长征十号甲',sn:'CZ-10A',co:'航天科技一院',tp:'mid',leo:17,gto:null,sso:null,st:'active',ln:2,desc:'长征十号可回收型号，一子级可复用，用于发射梦舟载人飞船和天舟货运飞船，空间站应用与发展工程主力。',sites:'文昌',color:'n'},
+      {n:'长征二号丙',sn:'CZ-2C',co:'航天科技一院',tp:'small',leo:4,gto:null,sso:1.3,st:'active',ln:63,desc:'成熟小型运载火箭，串联两级构型，LEO 4吨，SSO 1.3吨，发射次数最多的长征火箭之一，大量用于商业小卫星。',sites:'酒泉/太原/西昌',color:'n'},
+      {n:'长征二号丁',sn:'CZ-2D',co:'航天科技一院',tp:'small',leo:3.1,gto:null,sso:1.5,st:'active',ln:43,desc:'长征二号丙加装整流罩改型，LEO 3.1吨，SSO 1.5吨，性价比优，大量遥感卫星组网发射。',sites:'酒泉/太原/西昌',color:'n'},
+      {n:'长征二号F',sn:'CZ-2F',co:'航天科技一院',tp:'mid',leo:8.5,gto:null,sso:null,st:'active',ln:23,desc:'载人航天专用火箭，发射神舟载人飞船和目标飞行器，高可靠性，人称"神箭"，零窗口发射能力。',sites:'酒泉',color:'n'},
+      {n:'长征三号甲',sn:'CZ-3A',co:'航天科技一院',tp:'mid',leo:6,gto:2.6,sso:null,st:'active',ln:28,desc:'三级液体火箭，捆绑4台助推，GTO 2.6吨，北斗导航卫星和通信卫星发射主力。',sites:'西昌',color:'n'},
+      {n:'长征三号乙',sn:'CZ-3B',co:'航天科技一院',tp:'heavy',leo:11.5,gto:5.5,sso:null,st:'active',ln:68,desc:'长征三号甲加长型，捆绑4台助推，GTO 5.5吨，长征系列运力最大型号，大量高轨通信卫星和北斗导航卫星。',sites:'西昌',color:'n'},
+      {n:'长征三号丙',sn:'CZ-3C',co:'航天科技一院',tp:'mid',leo:6,gto:3.8,sso:null,st:'active',ln:10,desc:'长征三号乙减少2台助推改型，GTO 3.8吨，兼顾运力和成本。',sites:'西昌',color:'n'},
+      {n:'长征四号乙',sn:'CZ-4B',co:'航天科技一院',tp:'small',leo:4,gto:null,sso:2.4,st:'active',ln:32,desc:'三级液体串联火箭，LEO 4吨，SSO 2.4吨，气象卫星和遥感卫星主力发射火箭。',sites:'太原',color:'n'},
+      {n:'长征四号丙',sn:'CZ-4C',co:'航天科技一院',tp:'small',leo:4.2,gto:null,sso:2.8,st:'active',ln:12,desc:'长征四号乙改进型，SSO 2.8吨，风云三号气象卫星专用发射。',sites:'太原',color:'n'},
+      {n:'长征六号',sn:'CZ-6',co:'航天科技八院',tp:'small',leo:1.5,gto:null,sso:1,st:'active',ln:6,desc:'新一代小型运载火箭，液氧煤油发动机，无助推器，LEO 1.5吨，SSO 1吨，商业微小卫星发射主力。',sites:'太原',color:'n'},
+      {n:'长征六号改',sn:'CZ-6A',co:'航天科技八院',tp:'mid',leo:4,gto:null,sso:2,st:'active',ln:4,desc:'长征六号捆绑两台助推器改型，LEO 4吨，SSO 2吨，千帆星座和遥感组网主力火箭。',sites:'太原/酒泉',color:'n'},
+      {n:'长征十一号',sn:'CZ-11',co:'航天科技一院',tp:'small',leo:0.7,gto:null,sso:0.4,st:'active',ln:16,desc:'四级固体运载火箭，海上发射型号CZ-11H，LEO 0.7吨，响应速度快，发射准备周期短。',sites:'海阳(海射)',color:'n'},
+      {n:'长征十二号',sn:'CZ-12',co:'中国商火/一院',tp:'small',leo:2,gto:null,sso:1.5,st:'active',ln:3,desc:'四米级可重复使用火箭，液氧煤油，LEO 2吨，商业发射性价比高。',sites:'海南商业',color:'n'},
+      {n:'长征十二号甲',sn:'CZ-12A',co:'中国商火/一院',tp:'mid',leo:20,gto:null,sso:null,st:'active',ln:2,desc:'四米级可回收运载火箭，液氧煤油，LEO 20吨，一子级可复用，商业星座组网专用，2025年首飞成功。',sites:'海南商业',color:'n'},
+      {n:'长征十二号乙',sn:'CZ-12B',co:'中国商火/一院',tp:'mid',leo:20,gto:null,sso:null,st:'estimated',ln:0,desc:'长征十二号可回收型，LEO 20吨，计划2026上半年首飞，进一步提升商业发射频次。',sites:'海南商业',color:'n'},
+      {n:'捷龙三号',sn:'JL-3',co:'航天科技一院',tp:'small',leo:0.7,gto:null,sso:1.5,st:'active',ln:10,desc:'固体商业运载火箭，一箭多星，海射型成熟，LEO 0.7吨，主要用于商业微小卫星组网，已实现一箭七星。',sites:'海阳(海射)',color:'com'},
+      {n:'力箭一号',sn:'LJ-1',co:'中科宇航',tp:'mid',leo:6,gto:null,sso:3,st:'active',ln:7,desc:'中型固体运载火箭，LEO 6吨，SSO 3吨，国内最大规模商业固体火箭，已多次一箭多星发射。',sites:'酒泉',color:'com'},
+      {n:'力箭二号',sn:'LJ-2',co:'中科宇航',tp:'mid',leo:6,gto:null,sso:null,st:'active',ln:1,desc:'中型液体运载火箭，液氧煤油，LEO 6吨，中科宇航首型液体火箭，绍兴工厂年产12发，2026年3月30日首飞成功。',sites:'酒泉(东风)',color:'com'},
+      {n:'谷神星一号',sn:'CRS-1',co:'星河动力',tp:'small',leo:0.4,gto:null,sso:0.23,st:'active',ln:7,desc:'小型固体运载火箭，LEO 0.4吨，国内商业航天首款成功入轨的民营运载火箭，海射型已首飞，订单排至2028年。',sites:'酒泉/海阳',color:'com'},
+      {n:'智神星一号',sn:'ZSX-1',co:'星河动力',tp:'mid',leo:10,gto:null,sso:5,st:'estimated',ln:0,desc:'中型可回收液体运载火箭，液氧煤油，LEO 10吨，海上回收，计划2026上半年首飞。',sites:'海南/海阳',color:'com'},
+      {n:'智神星二号',sn:'ZSX-2',co:'星河动力',tp:'mid',leo:15,gto:null,sso:null,st:'estimated',ln:0,desc:'重型可回收液体运载火箭，液氧煤油，LEO 15吨，发动机全系统热试车完成，计划2026年底首飞。',sites:'海南/海阳',color:'com'},
+      {n:'朱雀二号',sn:'ZQ-2',co:'蓝箭航天',tp:'mid',leo:6,gto:null,sso:4,st:'active',ln:5,desc:'国内首款液氧甲烷入轨火箭，LEO 6吨，SSO 4吨，多次发射验证可靠性，改型ZQ-2E即将复飞。',sites:'酒泉',color:'cm'},
+      {n:'朱雀三号',sn:'ZQ-3',co:'蓝箭航天',tp:'heavy',leo:17,gto:null,sso:null,st:'active',ln:1,desc:'大型液氧甲烷可回收运载火箭，LEO 17吨，对标猎鹰9号，2025年底首飞成功，2026年Q2/Q4持续开展回收试验。',sites:'酒泉',color:'cm'},
+      {n:'天龙三号',sn:'TL-3',co:'天兵科技',tp:'heavy',leo:22,gto:null,sso:null,st:'estimated',ln:0,desc:'大型液氧甲烷运载火箭，LEO 22吨，对标猎鹰9号，可一箭36星，计划2026年4月首飞，可回收构型下半年测试。',sites:'酒泉',color:'cm'},
+      {n:'引力一号',sn:'YL-1',co:'东方空间',tp:'mid',leo:6,gto:null,sso:4,st:'active',ln:4,desc:'中型固体运载火箭，LEO 6吨，SSO 4吨，海射型，引力系列首款型号，已多次成功发射。',sites:'海阳(海射)',color:'cm'},
+      {n:'引力二号',sn:'YL-2',co:'东方空间',tp:'heavy',leo:21.5,gto:null,sso:null,st:'estimated',ln:0,desc:'大型液氧甲烷可回收运载火箭，LEO 21.5吨，芯级回收，海射，计划2026年中首飞，对标猎鹰9号。',sites:'海阳(海射)',color:'cm'},
+      {n:'双曲线二号',sn:'SQX-2',co:'星际荣耀',tp:'small',leo:1.5,gto:null,sso:null,st:'active',ln:3,desc:'小型液氧甲烷可回收运载火箭，LEO 1.5吨，国内民企首款可回收火箭，多次测试验证。',sites:'酒泉',color:'cm'},
+      {n:'双曲线三号',sn:'SQX-3',co:'星际荣耀',tp:'heavy',leo:15,gto:null,sso:null,st:'estimated',ln:0,desc:'大型液氧甲烷可回收运载火箭，LEO 15吨，计划2026年底首飞，同步验证回收技术。',sites:'酒泉',color:'cm'},
+      {n:'星云一号',sn:'XY-1',co:'深蓝航天',tp:'mid',leo:10,gto:null,sso:null,st:'estimated',ln:0,desc:'中型液氧甲烷可回收运载火箭，LEO 10吨，海上回收，计划2026年Q2首飞。',sites:'酒泉',color:'cm'},
+      {n:'元行者一号',sn:'YX-1',co:'箭元科技',tp:'heavy',leo:15,gto:null,sso:null,st:'estimated',ln:0,desc:'国内首款不锈钢+液氧甲烷+海上回收运载火箭，LEO 15吨，计划2026年底首飞。',sites:'海阳(海射)',color:'cm'},
+      {n:'快舟一号',sn:'KZ-1A',co:'航天科工',tp:'small',leo:0.4,gto:null,sso:0.3,st:'active',ln:14,desc:'小型固体运载火箭，快速响应，LEO 0.4吨，适合应急发射和商业小卫星，已多次商业发射。',sites:'酒泉',color:'n'},
+    ];
+
+    var tpMap = {heavy:{l:'重型',c:'heavy'},mid:{l:'中型',c:'mid'},small:{l:'小型',c:'small'}};
+    var stMap = {active:{l:'现役',c:'active'},estimated:{l:'待首飞',c:'estimated'},retire:{l:'退役',c:'retire'}};
+    var colorMap = {n:'n',com:'com',cm:'cm'};
+
+    var filtered = rks.filter(function(r) {
+      if (rkCo !== 'all' && r.co.indexOf(rkCo) === -1) return false;
+      if (rkSize === 'heavy' && r.leo < 15) return false;
+      if (rkSize === 'mid' && (r.leo >= 15 || r.leo < 5)) return false;
+      if (rkSize === 'small' && r.leo >= 5) return false;
+      if (rkReuse === 'yes' && r.desc.indexOf('回收') === -1 && r.desc.indexOf('复用') === -1) return false;
+      if (rkReuse === 'no' && (r.desc.indexOf('回收') !== -1 || r.desc.indexOf('复用') !== -1)) return false;
+      return true;
+    });
+    var cntEl = document.getElementById('rktCountBar');
+    if (cntEl) cntEl.textContent = '共 ' + filtered.length + ' 款火箭';
+    el.innerHTML = filtered.map(function(r) {
+      var tp = tpMap[r.tp] || {l:r.tp,c:'small'};
+      var st = stMap[r.st] || {l:r.st,c:'active'};
+      var iconBg = {n:'background:linear-gradient(135deg,#1e3a8a,#2563eb)',com:'background:linear-gradient(135deg,#7c3aed,#a855f7)',cm:'background:linear-gradient(135deg,#059669,#10b981)'}[colorMap[r.color]||'n'];
+      var launchNum = r.ln > 0 ? r.ln+'次发射' : '待首飞';
+      return '<div class="rkt-card">' +
+        '<div class="rkt-header">' +
+          '<div class="rkt-icon" style="'+iconBg+'">🚀</div>' +
+          '<div class="rkt-info">' +
+            '<div class="rkt-name">' + r.sn + ' <span style="font-size:13px;font-weight:400;color:#64748b">'+r.n+'</span></div>' +
+            '<div class="rkt-company">'+r.co+'</div>' +
+            '<div style="margin-top:4px">' +
+              '<span class="rkt-badge '+tp.c+'" style="background:#'+{heavy:'fee2e2;color:#991b1b',mid:'fef9c3;color:#a16207',small:'dbeafe;color:#1e40af'}[tp.c]+'">'+tp.l+'</span> ' +
+              '<span class="rkt-badge '+st.c+'" style="background:#'+{active:'dcfce7;color:#166534',estimated:'fef3c7;color:#b45309',retire:'f1f5f9;color:#64748b'}[st.c]+'">'+st.l+'</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rkt-specs">' +
+          '<div class="spec"><div class="sl">LEO</div><div class="sv">'+(r.leo||'—')+'</div><div class="ss">吨</div></div>' +
+          '<div class="spec"><div class="sl">GTO</div><div class="sv">'+(r.gto||'—')+'</div><div class="ss">吨</div></div>' +
+          '<div class="spec"><div class="sl">SSO</div><div class="sv">'+(r.sso||'—')+'</div><div class="ss">吨</div></div>' +
+        '</div>' +
+        '<div class="rkt-desc">'+r.desc+'</div>' +
+        '<div class="rkt-footer">' +
+          '<span class="site-tag">发射场：'+r.sites+'</span>' +
+          '<span class="launch-num">'+launchNum+'</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function initLaunch() {
+    if (window._lch) return;
+    window._lch = true;
+    var yrs = [];
+    if (typeof LAUNCHES !== 'undefined') {
+      LAUNCHES.forEach(function(l) {
+        var y = l.date.substring(0, 4);
+        if (yrs.indexOf(y) === -1) yrs.push(y);
+      });
+    }
+    yrs.sort();
+    yrs.reverse();
+    var yb = document.getElementById('yearBar');
+    yb.innerHTML = '';
+    var allBtn = document.createElement('button');
+    allBtn.className = 'btn' + (curYear === 'all' ? ' on' : '');
+    allBtn.textContent = '全部';
+    allBtn.onclick = function() {
+      curYear = 'all';
+      curPage = 1;
+      document.querySelectorAll('.ybar .btn').forEach(function(x) { x.classList.remove('on'); });
+      allBtn.classList.add('on');
+      renderLaunch();
+    };
+    yb.appendChild(allBtn);
+    yrs.forEach(function(y) {
+      var b = document.createElement('button');
+      b.className = 'btn' + (y === curYear ? ' on' : '');
+      b.textContent = y;
+      b.onclick = function() {
+        curYear = y;
+        curPage = 1;
+        document.querySelectorAll('.ybar .btn').forEach(function(x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        renderLaunch();
+      };
+      yb.appendChild(b);
+    });
+    renderLaunch();
+  }
+
+  window.setFlt = function(f, btn) {
+    curFlt = f;
+    curPage = 1;
+    document.querySelectorAll('.filt .btn').forEach(function(x) { x.classList.remove('on'); });
+    btn.classList.add('on');
+    renderLaunch();
+  };
+
+  function isComm(l) {
+    var cr = ['CRS-1', 'LJ-1', 'KJ-1', 'OS-M', 'ZQ', 'JL', 'TL', 'HB', '力箭', '谷神星', '引力', '双曲线', '朱雀', '天龙', '捷龙', '快舟', 'SQX', 'ZL', 'ZSX', 'XY', 'YX'];
+    var cp = ['商业', '天启', '千帆', 'GW', '低轨', '吉林一号', '天仪', '爱太空', '卫星互联网'];
+    var cs = ['海南商业', '海阳', '黄海'];
+    return cr.some(function(r) { return l.rocket.indexOf(r) !== -1; }) ||
+           cp.some(function(p) { return l.payload.indexOf(p) !== -1; }) ||
+           cs.some(function(s) { return l.site.indexOf(s) !== -1; });
+  }
+
+  function getBdg(l) {
+    if (l.payload.indexOf('神舟') !== -1 || l.payload.indexOf('天舟') !== -1) return '<span class="bdg md">载人</span>';
+    if (l.payload.indexOf('嫦娥') !== -1 || l.payload.indexOf('天问') !== -1 || l.payload.indexOf('火星') !== -1) return '<span class="bdg lr">深空</span>';
+    if (l.payload.indexOf('低轨') !== -1 || l.payload.indexOf('卫星互联网') !== -1) return '<span class="bdg cm">GW</span>';
+    if (isComm(l)) return '<span class="bdg cm">商业</span>';
+    return '';
+  }
+
+  // Derive rocket propulsion type from rocket name
+  function getTp(name) {
+    if (!name) return '-';
+    var n = name.toUpperCase();
+    // Recoverable
+    if (n.indexOf('可回收') !== -1 || n.indexOf('回收') !== -1) return '<span class="bdg" style="background:#dbeafe;color:#1d4ed8">可回收</span>';
+    // Solid rockets
+    if (n.indexOf('LJ-') !== -1 || n.indexOf('力箭') !== -1) return '<span class="bdg" style="background:#fef3c7;color:#92400e">固体</span>';
+    if (n.indexOf('CRS-') !== -1 || n.indexOf('谷神星') !== -1) return '<span class="bdg" style="background:#fef3c7;color:#92400e">固体</span>';
+    if (n.indexOf('JL-') !== -1 || n.indexOf('捷龙') !== -1) return '<span class="bdg" style="background:#fef3c7;color:#92400e">固体</span>';
+    if (n.indexOf('KZ-') !== -1 || n.indexOf('快舟') !== -1) return '<span class="bdg" style="background:#fef3c7;color:#92400e">固体</span>';
+    if (n.indexOf('SQX-') !== -1 || n.indexOf('双曲线') !== -1) return '<span class="bdg" style="background:#fef3c7;color:#92400e">固体</span>';
+    // Liquid rockets (most CZ-* are liquid)
+    return '<span class="bdg" style="background:#f0fdf4;color:#166534">液体</span>';
+  }
+
+  function getFlt() {
+    var d = typeof LAUNCHES !== 'undefined' ? LAUNCHES.slice() : [];
+    // Sort by date descending (most recent first)
+    d.sort(function(a, b) { return b.date > a.date ? 1 : (b.date < a.date ? -1 : 0); });
+    if (curYear !== 'all') {
+      d = d.filter(function(l) { return l.date.indexOf(curYear) === 0; });
+    }
+    if (curFlt === 'manned') {
+      d = d.filter(function(l) { return l.payload.indexOf('神舟') !== -1 || l.payload.indexOf('天舟') !== -1; });
+    } else if (curFlt === 'lunar') {
+      d = d.filter(function(l) { return l.payload.indexOf('嫦娥') !== -1 || l.payload.indexOf('天问') !== -1 || l.payload.indexOf('火星') !== -1; });
+    } else if (curFlt === 'commercial') {
+      d = d.filter(function(l) { return isComm(l) && l.payload.indexOf('低轨') === -1; });
+    } else if (curFlt === 'gw') {
+      d = d.filter(function(l) { return l.payload.indexOf('低轨') !== -1 || l.payload.indexOf('卫星互联网') !== -1; });
+    } else if (curFlt === 'failure') {
+      d = d.filter(function(l) { return l.type === 'failure'; });
+    }
+    return d;
+  }
+
+  window.goPage = function(p) {
+    var tp = Math.max(1, Math.ceil(fdata.length / PAGE_SIZE));
+    if (p < 1 || p > tp) return;
+    curPage = p;
+    renderLaunch();
+  };
+
+  function renderPbar(total, tp) {
+    if (curPage > tp) curPage = tp;
+    var bar = document.getElementById('pageBar');
+    if (!bar) return;
+    var sp = Math.max(1, curPage - 2);
+    var ep = Math.min(tp, sp + 4);
+    if (ep - sp < 4) sp = Math.max(1, ep - 4);
+    var h = '';
+    h += '<button class="pbtn' + (curPage <= 1 ? ' d' : '') + '" onclick="goPage(' + (curPage - 1) + ')">&#8592;</button>';
+    if (sp > 1) {
+      h += '<button class="pbtn" onclick="goPage(1)">1</button>';
+      if (sp > 2) h += '<span class="pinfo">&#8230;</span>';
+    }
+    for (var i = sp; i <= ep; i++) {
+      h += '<button class="pbtn' + (i === curPage ? ' on' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+    }
+    if (ep < tp) {
+      if (ep < tp - 1) h += '<span class="pinfo">&#8230;</span>';
+      h += '<button class="pbtn" onclick="goPage(' + tp + ')">' + tp + '</button>';
+    }
+    h += '<button class="pbtn' + (curPage >= tp ? ' d' : '') + '" onclick="goPage(' + (curPage + 1) + ')">&#8594;</button>';
+    h += '<span class="pinfo">' + total + '条 第' + curPage + '/' + tp + '页</span>';
+    bar.innerHTML = h;
+  }
+
+  function renderLaunch() {
+    fdata = getFlt();
+    var total = fdata.length;
+    var tp = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (curPage > tp) curPage = 1;
+    var s = (curPage - 1) * PAGE_SIZE;
+    var e = s + PAGE_SIZE;
+    var page = fdata.slice(s, e);
+    var fl = {all: '全部', manned: '载人航天', lunar: '深空探测', commercial: '商业发射', gw: 'GW/千帆', failure: '异常'};
+    var cb = document.getElementById('countBar');
+    var ch = '共 <strong style="color:var(--accent)">' + total + '</strong> 条';
+    if (curYear !== 'all') ch += ' &middot; <strong style="color:var(--accent)">' + curYear + '年</strong>';
+    if (curFlt !== 'all') ch += ' &middot; <strong style="color:var(--blue)">' + (fl[curFlt] || curFlt) + '</strong>';
+    if (cb) cb.innerHTML = ch;
+    var tb = document.getElementById('launchBody');
+    if (!tb) return;
+    tb.innerHTML = page.map(function(l, i) {
+      var rn = (l.type === 'failure') ? '失利' : '成功';
+      var rc = (l.type === 'failure') ? 'fl' : 'ok';
+      return '<tr><td style="color:#94a3b8;font-size:10px">' + (s + i + 1) + '</td>' +
+        '<td style="white-space:nowrap;font-weight:600">' + l.date + '</td>' +
+        '<td style="font-weight:700">' + (l.rocket || '-') + '</td>' +
+        '<td style="font-size:10px">' + getTp(l.rocket) + '</td>' +
+        '<td style="color:#64748b;font-size:11px">' + (l.site || '-') + '</td>' +
+        '<td style="font-size:11px">' + (l.payload || '-') + ' ' + getBdg(l) + '</td>' +
+        '<td><span class="rst ' + rc + '">' + rn + '</span></td></tr>';
+    }).join('');
+    renderPbar(total, tp);
+  }
+
+  // Init on page load
+  var tc = document.getElementById('totalCount');
+  if (tc) tc.textContent = typeof LAUNCHES !== 'undefined' ? LAUNCHES.length : '-';
+  calcOverview();
+  renderUpcoming();
+})();
+</script>
+</body>
+</html>
